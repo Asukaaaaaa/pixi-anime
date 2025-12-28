@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Movie Animation Demo</title>
+    <script type="importmap">
+        {
+            "imports": {
+                "pixi.js": "../node_modules/pixi.js/dist/pixi.mjs",
+                "rslib-project": "../dist/index.js"
+            }
+        }
+    </script>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+            background-color: #333;
+        }
+
+        canvas {
+            display: block;
+        }
+    </style>
+</head>
+
+<body>
+    <script type="module">
+        // Import from our built library. 
+        // Note: In real usage, this would be the package name. 
+        // We use the import map to point to the local dist.
+        import { Movie, MovieRenderer } from 'rslib-project';
+
+        (async () => {
+            // Define Element 1: Image (Bunny)
+            const bunnyId = 'bunny1';
+            const bunnyElement = {
+                id: bunnyId,
+                type: 'image',
+                src: 'https://pixijs.com/assets/bunny.png',
+                frames: [
+                    { frame: 0, x: 100, y: 100, rotation: 0, scaleX: 1, scaleY: 1 },
+                    { frame: 60, x: 500, y: 100, rotation: 3.14 },
+                    { frame: 120, x: 500, y: 500, rotation: 6.28, scaleX: 2, scaleY: 2 },
+                    { frame: 180, x: 100, y: 500, rotation: 3.14 },
+                    { frame: 240, x: 100, y: 100, rotation: 0, scaleX: 1, scaleY: 1 }
+                ]
+            };
+
+            // Define Element 2: Text
+            const textId = 'text1';
+            const textElement = {
+                id: textId,
+                type: 'text',
+                content: 'Hello World!',
+                style: {
+                    fontSize: 36,
+                    fill: 'white',
+                    fontFamily: 'Arial'
+                },
+                frames: [
+                    { frame: 0, x: 400, y: 300, alpha: 0 },
+                    { frame: 60, x: 400, y: 300, alpha: 1 },
+                    { frame: 180, x: 400, y: 300, alpha: 1, scaleX: 1.5, scaleY: 1.5 },
+                    { frame: 240, x: 400, y: 300, alpha: 0 }
+                ]
+            };
+
+            // Create Movie
+            const movie = new Movie([bunnyElement, textElement], {
+                width: 800,
+                height: 600,
+                duration: 300,
+                loop: false,
+                fps: 60
+            });
+
+            // Create Renderer
+            // We can now omit explicit background/resizeTo if we want to rely on defaults or pass them.
+            // Let's pass background but let Movie Width/Height dictate size.
+            const renderer = new MovieRenderer(movie, { background: '#1099bb' });
+
+            // Initialize and Play
+            await renderer.init(document.body);
+            renderer.play();
+
+            console.log('Animation started');
+
+            // Expose renderer to window for manual seeking testing in console
+            window.renderer = renderer;
+            window.movie = movie;
+
+            // Example of seeking after 5 seconds
+            setTimeout(() => {
+                renderer.pause();
+                console.log('Paused. Seeking to frame 150');
+                renderer.seek(150);
+            }, 5000);
+        })();
+    </script>
+</body>
+
+</html>
