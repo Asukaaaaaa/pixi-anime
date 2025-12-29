@@ -4,7 +4,7 @@ import { Movie, MovieElement, ElementType } from '../model';
 export class MovieRenderer {
   private app: Application;
   private movie: Movie;
-  private elementMap: Map<string, Container>; // Store Pixi objects by element ID
+  private elementMap: Map<string, Container | HTMLAudioElement>; // Store Pixi objects or Audio elements by element ID
   private isPlaying: boolean;
   private currentFrame: number;
   private options?: Partial<ApplicationOptions>;
@@ -39,6 +39,13 @@ export class MovieRenderer {
 
   private async setupElements() {
     for (const element of this.movie.elements) {
+      if (element.type === 'audio') {
+        const audio = new Audio(element.src);
+        audio.preload = 'auto'; // Preload audio
+        this.elementMap.set(element.id, audio);
+        continue;
+      }
+
       let pixiObject: Container;
 
       if (element.type === 'image') {
@@ -59,11 +66,21 @@ export class MovieRenderer {
     if (this.isPlaying) return;
     this.isPlaying = true;
     this.app.ticker.add(this.update, this);
+
+    // Sync audio start if needed? 
+    // Actually renderFrame handles playback check, so updates will catch it.
   }
 
   pause() {
     this.isPlaying = false;
     this.app.ticker.remove(this.update, this);
+
+    // Pause all audio
+    for (const item of Array.from(this.elementMap.values())) {
+      if (item instanceof HTMLAudioElement) {
+        item.pause();
+      }
+    }
   }
 
   seek(frame: number) {
@@ -73,20 +90,9 @@ export class MovieRenderer {
 
   private update(time: any) {
     // Determine frame based on time or just increment for simple playback
-    // For FPS control, we should ideally use time.path or keep a local accumulator.
-    // However, simplest way effectively is to rely on Pixi ticker speed or just increment.
-    // If we want specific FPS for the MOVIE, we need to map real time to movie time.
-
-    // For now, let's implement a simple accumulator strategy.
-    // Pixi ticker normally runs at 60fps (or monitor refresh rate).
-    // this.movie.fps is our target.
-
-    // Using time.deltaTime (which is scaled to 1 = 60fps usually) or time.elapsedMS
 
     // Simple approach: 
     // Increment frame by (movie.fps / 60) * time.deltaTime?
-    // Let's assume time.deltaTime is ~1 at 60fps.
-    // If movie.fps is 30, we want to advance 0.5 frames per tick.
 
     const speed = this.movie.fps / 60; // Approximation if we assume 60fps base
     this.currentFrame += speed * time.deltaTime;
@@ -105,16 +111,48 @@ export class MovieRenderer {
 
   renderFrame(frame: number) {
     for (const element of this.movie.elements) {
-      const state = this.movie.getElementState(element.id, frame);
-      const pixiObject = this.elementMap.get(element.id);
+      const item = this.elementMap.get(element.id);
 
-      if (pixiObject && state) {
-        if (state.x !== undefined) pixiObject.x = state.x;
-        if (state.y !== undefined) pixiObject.y = state.y;
-        if (state.alpha !== undefined) pixiObject.alpha = state.alpha;
-        if (state.scaleX !== undefined) pixiObject.scale.x = state.scaleX;
-        if (state.scaleY !== undefined) pixiObject.scale.y = state.scaleY;
-        if (state.rotation !== undefined) pixiObject.rotation = state.rotation;
+      if (element.type === 'audio' && item instanceof HTMLAudioElement) {
+        const startFrame = element.startFrame ?? 0;
+        const endFrame = element.endFrame ?? this.movie.duration;
+
+        if (frame >= startFrame && frame < endFrame) {
+          // Should be playing
+          if (this.isPlaying && item.paused) {
+            item.play().catch(e => console.warn("Audio play failed", e));
+            // Sync time: (currentFrame - startFrame) / fps -> seconds
+            // We only sync if drift is large or just started? 
+            // For strict requirement: "play at normal speed", just setting currentTime once might be enough 
+            // but loop/seek needs care.
+            item.currentTime = (frame - startFrame) / this.movie.fps;
+          } else if (this.isPlaying && !item.paused) {
+            // Check sync?
+            const expectedTime = (frame - startFrame) / this.movie.fps;
+            if (Math.abs(item.currentTime - expectedTime) > 0.5) {
+              item.currentTime = expectedTime;
+            }
+          }
+        } else {
+          // Should be stopped/paused
+          if (!item.paused) {
+            item.pause();
+            item.currentTime = 0;
+          }
+        }
+        continue;
+      }
+
+      // Visual elements
+      const state = this.movie.getElementState(element.id, frame);
+
+      if (item instanceof Container && state) {
+        if (state.x !== undefined) item.x = state.x;
+        if (state.y !== undefined) item.y = state.y;
+        if (state.alpha !== undefined) item.alpha = state.alpha;
+        if (state.scaleX !== undefined) item.scale.x = state.scaleX;
+        if (state.scaleY !== undefined) item.scale.y = state.scaleY;
+        if (state.rotation !== undefined) item.rotation = state.rotation;
       }
     }
   }

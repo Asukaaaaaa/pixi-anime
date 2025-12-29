@@ -1,5 +1,5 @@
 
-export type ElementType = 'image' | 'text';
+export type ElementType = 'image' | 'text' | 'audio';
 
 export interface Frame {
   frame: number;
@@ -34,7 +34,14 @@ export interface TextElement extends ElementBase {
   };
 }
 
-export type MovieElement = ImageElement | TextElement;
+export interface AudioElement extends ElementBase {
+  type: 'audio';
+  src: string;
+  startFrame?: number;
+  endFrame?: number;
+}
+
+export type MovieElement = ImageElement | TextElement | AudioElement;
 
 export interface MovieOptions {
   width: number;

@@ -27,80 +27,110 @@
     </style>
 </head>
 
-<body>
-    <script type="module">
-        // Import from our built library. 
-        // Note: In real usage, this would be the package name. 
-        // We use the import map to point to the local dist.
-        import { Movie, MovieRenderer } from 'rslib-project';
+<div id="controls" style="position: absolute; top: 10px; left: 10px; z-index: 100;">
+    <button id="playPauseBtn" style="padding: 10px 20px; font-size: 16px; cursor: pointer;">Pause</button>
+</div>
+<script type="module">
+    // Import from our built library. 
+    // Note: In real usage, this would be the package name. 
+    // We use the import map to point to the local dist.
+    import { Movie, MovieRenderer } from 'rslib-project';
 
-        (async () => {
-            // Define Element 1: Image (Bunny)
-            const bunnyId = 'bunny1';
-            const bunnyElement = {
-                id: bunnyId,
-                type: 'image',
-                src: 'https://pixijs.com/assets/bunny.png',
-                frames: [
-                    { frame: 0, x: 100, y: 100, rotation: 0, scaleX: 1, scaleY: 1 },
-                    { frame: 60, x: 500, y: 100, rotation: 3.14 },
-                    { frame: 120, x: 500, y: 500, rotation: 6.28, scaleX: 2, scaleY: 2 },
-                    { frame: 180, x: 100, y: 500, rotation: 3.14 },
-                    { frame: 240, x: 100, y: 100, rotation: 0, scaleX: 1, scaleY: 1 }
-                ]
-            };
+    (async () => {
+        // Define Element 1: Image (Bunny)
+        const bunnyId = 'bunny1';
+        const bunnyElement = {
+            id: bunnyId,
+            type: 'image',
+            src: 'https://pixijs.com/assets/bunny.png',
+            frames: [
+                { frame: 0, x: 100, y: 100, rotation: 0, scaleX: 1, scaleY: 1 },
+                { frame: 60, x: 500, y: 100, rotation: 3.14 },
+                { frame: 120, x: 500, y: 500, rotation: 6.28, scaleX: 2, scaleY: 2 },
+                { frame: 180, x: 100, y: 500, rotation: 3.14 },
+                { frame: 240, x: 100, y: 100, rotation: 0, scaleX: 1, scaleY: 1 }
+            ]
+        };
 
-            // Define Element 2: Text
-            const textId = 'text1';
-            const textElement = {
-                id: textId,
-                type: 'text',
-                content: 'Hello World!',
-                style: {
-                    fontSize: 36,
-                    fill: 'white',
-                    fontFamily: 'Arial'
-                },
-                frames: [
-                    { frame: 0, x: 400, y: 300, alpha: 0 },
-                    { frame: 60, x: 400, y: 300, alpha: 1 },
-                    { frame: 180, x: 400, y: 300, alpha: 1, scaleX: 1.5, scaleY: 1.5 },
-                    { frame: 240, x: 400, y: 300, alpha: 0 }
-                ]
-            };
+        // Define Element 2: Text
+        const textId = 'text1';
+        const textElement = {
+            id: textId,
+            type: 'text',
+            content: 'Hello World!',
+            style: {
+                fontSize: 36,
+                fill: 'white',
+                fontFamily: 'Arial'
+            },
+            frames: [
+                { frame: 0, x: 400, y: 300, alpha: 0 },
+                { frame: 60, x: 400, y: 300, alpha: 1 },
+                { frame: 180, x: 400, y: 300, alpha: 1, scaleX: 1.5, scaleY: 1.5 },
+                { frame: 240, x: 400, y: 300, alpha: 0 }
+            ]
+        };
 
-            // Create Movie
-            const movie = new Movie([bunnyElement, textElement], {
-                width: 800,
-                height: 600,
-                duration: 300,
-                loop: false,
-                fps: 60
-            });
+        // Define Element 3: Audio
+        const audioId = 'audio1';
+        const audioElement = {
+            id: audioId,
+            type: 'audio',
+            src: 'https://actions.google.com/sounds/v1/alarms/beep_short.ogg', // Simple beep sound
+            startFrame: 30, // Start playing at frame 30
+            endFrame: 180,  // Stop at frame 180
+            frames: [] // Audio frames not used for movement
+        };
 
-            // Create Renderer
-            // We can now omit explicit background/resizeTo if we want to rely on defaults or pass them.
-            // Let's pass background but let Movie Width/Height dictate size.
-            const renderer = new MovieRenderer(movie, { background: '#1099bb' });
+        // Create Movie
+        const movie = new Movie([bunnyElement, textElement, audioElement], {
+            width: 800,
+            height: 600,
+            duration: 300,
+            loop: true,
+            fps: 60
+        });
 
-            // Initialize and Play
-            await renderer.init(document.body);
-            renderer.play();
+        // Create Renderer
+        // We can now omit explicit background/resizeTo if we want to rely on defaults or pass them.
+        // Let's pass background but let Movie Width/Height dictate size.
+        const renderer = new MovieRenderer(movie, { background: '#1099bb' });
 
-            console.log('Animation started');
+        // Initialize and Play
+        await renderer.init(document.body);
+        renderer.play();
 
-            // Expose renderer to window for manual seeking testing in console
-            window.renderer = renderer;
-            window.movie = movie;
+        console.log('Animation started');
 
-            // Example of seeking after 5 seconds
-            setTimeout(() => {
+        // Expose renderer to window for manual seeking testing in console
+        window.renderer = renderer;
+        window.movie = movie;
+
+        // Setup UI Control
+        const btn = document.getElementById('playPauseBtn');
+        let isPlaying = true;
+
+        btn.addEventListener('click', () => {
+            if (isPlaying) {
                 renderer.pause();
-                console.log('Paused. Seeking to frame 150');
-                renderer.seek(150);
-            }, 5000);
-        })();
-    </script>
+                btn.textContent = 'Play';
+            } else {
+                renderer.play();
+                btn.textContent = 'Pause';
+            }
+            isPlaying = !isPlaying;
+        });
+
+        // Example of seeking after 5 seconds
+        /*
+        setTimeout(() => {
+            renderer.pause();
+            console.log('Paused. Seeking to frame 150');
+            renderer.seek(150);
+        }, 5000);
+        */
+    })();
+</script>
 </body>
 
 </html>
