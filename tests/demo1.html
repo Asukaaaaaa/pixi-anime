@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Document</title>
+  <style>
+    canvas {
+      display: block;
+      margin: 16px;
+    }
+  </style>
+  <script type="importmap">
+    {
+      "imports": {
+        "pixi.js": "../node_modules/pixi.js/dist/pixi.mjs"
+      }
+    }
+  </script>
+</head>
+
+<body>
+  <script type="module">
+    import {
+      Application,
+      Assets,
+      Container,
+      RenderTexture,
+      SCALE_MODES,
+      Sprite,
+      autoDetectRenderer
+    } from 'pixi.js';
+
+    (async () => {
+      const renderer = await autoDetectRenderer({
+        preference: 'webgpu',
+        multiView: true
+      });
+
+      const container = new Container();
+
+      const texture = await Assets.load('https://pixijs.com/assets/bunny.png');
+
+      for (let i = 0; i < 25; i++) {
+        const bunny = new Sprite(texture);
+
+        bunny.x = (i % 5) * 30;
+        bunny.y = Math.floor(i / 5) * 30;
+        bunny.rotation = Math.random() * (Math.PI * 2);
+        container.addChild(bunny);
+      }
+
+      container.x = 100;
+      container.y = 60;
+
+      const c1 = document.createElement('canvas');
+      const c2 = document.createElement('canvas');
+      c1.width = 400;
+      c1.height = 400;
+      c2.width = 400;
+      c2.height = 400;
+      document.body.append(c1);
+      document.body.append(c2);
+
+      renderer.render({ container, target: c1 })
+      renderer.render({ container, target: c2 })
+    })();
+  </script>
+</body>
+
+</html>
