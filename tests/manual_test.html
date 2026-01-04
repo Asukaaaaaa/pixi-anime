@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <title>Movie Renderer Test</title>
+  <script type="importmap">
+    {
+      "imports": {
+        "pixi.js": "../node_modules/pixi.js/dist/pixi.mjs",
+        "pixi-anim": "../dist/index.js"
+      }
+    }
+  </script>
+</head>
+
+<body>
+  <h1>Movie Renderer Test</h1>
+  <p>Should see a bunny and text. Audio should NOT play and no Audio elements should be created.</p>
+  <div id="container"></div>
+
+  <script type="module">
+    import { Movie, MovieRenderer } from 'pixi-anim';
+
+    // Mock Audio to verify it is NOT called
+    const originalAudio = window.Audio;
+    let audioCreated = false;
+    window.Audio = class extends originalAudio {
+      constructor(...args) {
+        super(...args);
+        console.error("Audio element created! Test Failed.");
+        audioCreated = true;
+      }
+    };
+
+    const movie = new Movie([
+      {
+        id: 'bg',
+        type: 'image',
+        src: 'https://pixijs.com/assets/bunny.png',
+        frames: [
+          { frame: 0, x: 50, y: 50, rotation: 0 },
+          { frame: 100, x: 350, y: 350, rotation: 6.28 }
+        ]
+      },
+      {
+        id: 'txt',
+        type: 'text',
+        content: 'Hello Pixi',
+        style: { fontSize: 24, fill: 'white' },
+        frames: [
+          { frame: 0, x: 50, y: 20 },
+          { frame: 50, x: 200, y: 20 } // Moving text
+        ]
+      },
+      {
+        id: 'sfx',
+        type: 'audio',
+        src: 'fake_audio.mp3', // Should not be loaded
+        frames: []
+      }
+    ], {
+      width: 400,
+      height: 400,
+      duration: 100,
+      fps: 60,
+      loop: true,
+    });
+    await movie.init(true);
+
+    const renderer = new MovieRenderer(movie);
+    await renderer.init(document.getElementById('container'));
+    renderer.play();
+
+    if (!audioCreated) {
+      console.log("PASS: No Audio elements created.");
+      const status = document.createElement('div');
+      status.style.color = 'green';
+      status.style.fontWeight = 'bold';
+      status.innerText = "PASS: No Audio elements created.";
+      document.body.appendChild(status);
+    } else {
+      const status = document.createElement('div');
+      status.style.color = 'red';
+      status.style.fontWeight = 'bold';
+      status.innerText = "FAIL: Audio elements created.";
+      document.body.appendChild(status);
+    }
+
+  </script>
+</body>
+
+</html>

@@ -1,3 +1,4 @@
+import { Container, Sprite, Text, Assets } from 'pixi.js';
 
 export type ElementType = 'image' | 'text' | 'audio';
 
@@ -58,6 +59,9 @@ export class Movie {
   height: number;
   loop: boolean;
   fps: number;
+  container: Container;
+
+  private elementMap: Map<string, Container>;
 
   constructor(elements: MovieElement[], options: MovieOptions) {
     this.elements = elements;
@@ -66,71 +70,124 @@ export class Movie {
     this.height = options.height;
     this.loop = options.loop ?? true;
     this.fps = options.fps ?? 60;
+    this.container = new Container();
+    this.elementMap = new Map();
   }
 
-  // Get interpolted frame data for a specific element at a specific frame
-  getElementState(elementId: string, frame: number): Frame | null {
-    const element = this.elements.find(e => e.id === elementId);
-    if (!element) return null;
+  async init(interpolate: boolean = false) {
+    if (interpolate) {
+      this._precalculateFrames();
+    }
 
-    // Simple linear interpolation could go here, 
-    // but for now let's just find the closest previous keyframe or exact match.
-    // Ideally we want to interpolate between two keyframes.
+    const promises = this.elements.map(async (element) => {
+      if (element.type === 'audio') {
+        return;
+      }
 
-    return this.interpolate(element.frames, frame);
-  }
+      let pixiObject: Container;
 
-  private interpolate(frames: Frame[], targetFrame: number): Frame {
-    // Sort frames just in case
-    const sortedFrames = [...frames].sort((a, b) => a.frame - b.frame);
-
-    if (sortedFrames.length === 0) return { frame: targetFrame };
-
-    // Find the frame segments
-    let prevFrame: Frame = sortedFrames[0];
-    let nextFrame: Frame = sortedFrames[sortedFrames.length - 1];
-
-    for (let i = 0; i < sortedFrames.length; i++) {
-      if (sortedFrames[i].frame <= targetFrame) {
-        prevFrame = sortedFrames[i];
+      if (element.type === 'image') {
+        const texture = await Assets.load(element.src);
+        pixiObject = new Sprite(texture);
+      } else if (element.type === 'text') {
+        pixiObject = new Text({ text: element.content, style: element.style });
       } else {
-        nextFrame = sortedFrames[i];
-        break;
+        return;
       }
-    }
 
-    if (prevFrame === nextFrame) {
-      return { ...prevFrame, frame: targetFrame };
-    }
-
-    if (targetFrame < prevFrame.frame) return { ...prevFrame, frame: targetFrame };
-    if (targetFrame > nextFrame.frame) return { ...nextFrame, frame: targetFrame };
-
-    // Linear interpolation
-    const ratio = (targetFrame - prevFrame.frame) / (nextFrame.frame - prevFrame.frame);
-
-    const result: Frame = { frame: targetFrame };
-
-    // Interpolate numeric properties
-    // We union keys from both frames to handle partial keyframes if we want to be robust,
-    // but for simplicity let's assume keys present in prevFrame are the ones to interpolate
-    // or just defined common properties.
-    const keys = new Set([...Object.keys(prevFrame), ...Object.keys(nextFrame)]);
-
-    keys.forEach(key => {
-      if (key === 'frame') return;
-
-      const v1 = prevFrame[key];
-      const v2 = nextFrame[key];
-
-      if (typeof v1 === 'number' && typeof v2 === 'number') {
-        result[key] = v1 + (v2 - v1) * ratio;
-      } else if (v1 !== undefined) {
-        // For non-numeric, just hold the previous value
-        result[key] = v1;
-      }
+      this.container.addChild(pixiObject);
+      this.elementMap.set(element.id, pixiObject);
     });
 
-    return result;
+    await Promise.all(promises);
+  }
+
+  private _precalculateFrames() {
+    for (const element of this.elements) {
+      if (element.type === 'audio') continue;
+
+      const keyframes = [...element.frames].sort((a, b) => a.frame - b.frame);
+      if (keyframes.length === 0) continue;
+
+      const fullFrames: Frame[] = [];
+      const propsToInterpolate = new Set<string>();
+
+      // Collect all numeric properties that appear in keyframes
+      for (const kf of keyframes) {
+        Object.keys(kf).forEach(key => {
+          if (key !== 'frame' && typeof kf[key] === 'number') {
+            propsToInterpolate.add(key);
+          }
+        });
+      }
+
+      for (let f = 0; f <= this.duration; f++) {
+        // Check if exact keyframe exists
+        const exact = keyframes.find(k => k.frame === f);
+        if (exact) {
+          fullFrames.push(exact);
+          continue;
+        }
+
+        // Find surrounding keyframes
+        let prev = keyframes[0];
+        let next = keyframes[keyframes.length - 1];
+
+        for (let i = 0; i < keyframes.length; i++) {
+          if (keyframes[i].frame <= f) {
+            prev = keyframes[i];
+          } else {
+            next = keyframes[i];
+            break;
+          }
+        }
+
+        // Handle edge cases (before first, after last) - clamp to nearest
+        if (f < prev.frame) {
+          fullFrames.push({ ...prev, frame: f });
+          continue;
+        }
+        if (f > next.frame) {
+          fullFrames.push({ ...next, frame: f });
+          continue;
+        }
+
+        if (prev === next) {
+          fullFrames.push({ ...prev, frame: f });
+          continue;
+        }
+
+        // Interpolate
+        const ratio = (f - prev.frame) / (next.frame - prev.frame);
+        const interpolatedFrame: Frame = { ...prev, frame: f }; // Start with prev values for non-numeric
+
+        propsToInterpolate.forEach(prop => {
+          const v1 = prev[prop];
+          const v2 = next[prop];
+          if (typeof v1 === 'number' && typeof v2 === 'number') {
+            interpolatedFrame[prop] = v1 + (v2 - v1) * ratio;
+          }
+        });
+
+        fullFrames.push(interpolatedFrame);
+      }
+
+      element.frames = fullFrames;
+    }
+  }
+
+  updateFrame(frame: number) {
+    for (const element of this.elements) {
+      if (element.type === 'audio') continue;
+      const pixiObject = this.elementMap.get(element.id)!;
+      const state = element.frames.find(f => f.frame === frame);
+      if (!state) continue;
+      if (state.x !== undefined) pixiObject.x = state.x;
+      if (state.y !== undefined) pixiObject.y = state.y;
+      if (state.alpha !== undefined) pixiObject.alpha = state.alpha;
+      if (state.scaleX !== undefined) pixiObject.scale.x = state.scaleX;
+      if (state.scaleY !== undefined) pixiObject.scale.y = state.scaleY;
+      if (state.rotation !== undefined) pixiObject.rotation = state.rotation;
+    }
   }
 }
