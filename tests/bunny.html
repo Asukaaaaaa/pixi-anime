@@ -1,0 +1,99 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Bunny Demo</title>
+    <script type="importmap">
+      {
+        "imports": {
+          "pixi.js": "../node_modules/pixi.js/dist/pixi.mjs",
+          "rslib-project": "../dist/index.js"
+        }
+      }
+    </script>
+    <style>
+      body {
+        margin: 0;
+        padding: 0;
+        background-color: #333;
+      }
+
+      #app {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        justify-content: space-around;
+        row-gap: 16px;
+      }
+
+      #app canvas {
+        flex-basis: 30%;
+      }
+    </style>
+  </head>
+
+  <body>
+    <div id="info">Initializing...</div>
+    <div id="app"></div>
+    <script type="module">
+      // Import from our built library.
+      // Note: In real usage, this would be the package name.
+      // We use the import map to point to the local dist.
+      import { RenderContext, SceneBunnies } from "rslib-project";
+
+      const rc = new RenderContext();
+      const scene_list = Array.from({ length: 20 }).map((_, i) => {
+        const scene = new SceneBunnies();
+        if (i % 10 === 0) scene.type = "basic_rotation";
+        if (i % 10 === 1) scene.type = "wave_rotation";
+        if (i % 10 === 2) scene.type = "pulse_scaling";
+        if (i % 10 === 3) scene.type = "spiral_rotation";
+        if (i % 10 === 4) scene.type = "alternating_rotation";
+        if (i % 10 === 5) scene.type = "bouncing_rotation";
+        if (i % 10 === 6) scene.type = "progressive_rotation";
+        if (i % 10 === 7) scene.type = "random_rotation";
+        if (i % 10 === 8) scene.type = "swinging_rotation";
+        if (i % 10 === 9) scene.type = "fast_rotation";
+        return scene;
+      });
+      const canvas_list = Array.from({ length: 20 }).map((_, i) => {
+        const canvas = document.createElement("canvas");
+        canvas.width = 150; // scene_list[i % 10].container.width;
+        canvas.height = 150; // scene_list[i].container.height;
+        document.getElementById("app").appendChild(canvas);
+        return canvas;
+      });
+
+      let frame = 0,
+        fps = 30,
+        total = 100,
+        lastFrameTime = 0,
+        lastFrameStep = 0,
+        frameInterval = 1000 / fps;
+
+      function renderLoop(currentTime) {
+        if (currentTime - lastFrameTime >= frameInterval) {
+          // 更新并渲染每个场景
+          scene_list.forEach((scene, i) => {
+            rc.render(scene.getFrameAt(frame % total), canvas_list[i]);
+          });
+
+          lastFrameStep = (currentTime - lastFrameTime).toFixed(1);
+
+          // 更新信息显示
+          document.getElementById("info").textContent =
+            `Frame: ${++frame % total}/${total} | Rendered: ${frame} times | FPS: ${(
+              1000 / lastFrameStep
+            ).toFixed(1)} | Step: ${lastFrameStep}ms`;
+
+          lastFrameTime = currentTime;
+        }
+
+        requestAnimationFrame(renderLoop);
+      }
+
+      setTimeout(() => requestAnimationFrame(renderLoop), 1000);
+    </script>
+  </body>
+</html>

@@ -1,0 +1,97 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Bunny Demo</title>
+    <script type="importmap">
+      {
+        "imports": {
+          "pixi.js": "../node_modules/pixi.js/dist/pixi.mjs",
+          "svga-web": "../node_modules/svga-web/dist/svga-web.js",
+          "rslib-project": "../dist/index.js"
+        }
+      }
+    </script>
+    <style>
+      body {
+        margin: 0;
+        padding: 0;
+        background-color: #333;
+      }
+
+      #app {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        justify-content: space-around;
+        row-gap: 16px;
+      }
+
+      #app canvas {
+        flex-basis: 30%;
+        flex-shrink: 1;
+      }
+    </style>
+  </head>
+
+  <body>
+    <div id="info">Initializing...</div>
+    <div id="app"></div>
+    <script type="module">
+      // Import from our built library.
+      // Note: In real usage, this would be the package name.
+      // We use the import map to point to the local dist.
+      import { RenderContext, SceneBunnies, SceneSVGA } from "rslib-project";
+
+      (async () => {
+        let frame = 0,
+          fps = 10,
+          total = 38,
+          lastFrameTime = 0,
+          lastFrameStep = 0,
+          frameInterval = 1000 / fps;
+
+        function renderLoop(currentTime) {
+          if (currentTime - lastFrameTime >= frameInterval) {
+            // 更新并渲染每个场景
+            scene_list.forEach((scene, i) => {
+              rc.render(scene.getFrameAt(frame % total), canvas_list[i]);
+            });
+
+            lastFrameStep = (currentTime - lastFrameTime).toFixed(1);
+
+            // 更新信息显示
+            document.getElementById("info").textContent =
+              `Frame: ${++frame % total}/${total} | Rendered: ${frame} times | FPS: ${(
+                1000 / lastFrameStep
+              ).toFixed(1)} | Step: ${lastFrameStep}ms`;
+
+            lastFrameTime = currentTime;
+          }
+
+          requestAnimationFrame(renderLoop);
+        }
+
+        const rc = new RenderContext();
+        const scene_list = Array.from({ length: 20 }).map((_, i) => {
+          let src = "";
+          // src = "./a.svga";
+          src = "./b.svga";
+          const scene = new SceneSVGA(src);
+          return scene;
+        });
+        await Promise.all(scene_list.map((s) => s.ready.promise));
+        const canvas_list = Array.from({ length: 20 }).map((_, i) => {
+          const canvas = document.createElement("canvas");
+          canvas.width = scene_list[i % 10].container.width;
+          canvas.height = scene_list[i].container.height;
+          document.getElementById("app").appendChild(canvas);
+          return canvas;
+        });
+
+        requestAnimationFrame(renderLoop);
+      })();
+    </script>
+  </body>
+</html>

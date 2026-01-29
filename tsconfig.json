@@ -1,10 +1,6 @@
 {
   "compilerOptions": {
-    "lib": [
-      "ESNext",
-      "DOM",
-      "DOM.Iterable",
-    ],
+    "lib": ["ESNext", "DOM", "DOM.Iterable"],
     "target": "ESNext",
     "module": "ESNext",
     "noEmit": true,
@@ -16,7 +12,5 @@
     "useDefineForClassFields": true,
     "allowImportingTsExtensions": true
   },
-  "include": [
-    "src"
-  ]
+  "include": ["src"]
 }
